@@ -31,7 +31,6 @@ class ProductCategory(models.Model):
     @api.onchange('name')
     def _onchange_name_generate_slug(self):
         if not self.collection_key and self.name:
-            # Convierte "Metal Sculptures" -> "metal-sculptures"
             self.collection_key = self.name.lower().strip().replace(" ", "-")
 
     _sql_constraints = [

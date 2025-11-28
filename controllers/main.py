@@ -12,7 +12,7 @@ class CollectionsApiController(http.Controller):
         domain = [('is_collection', '=', True)]
         categories = request.env['product.category'].sudo().search(domain)
         
-        # Obtenemos base url para imágenes de PRODUCTOS (no de colección)
+        # Obtenemos base url para imágenes
         base_url = request.env['ir.config_parameter'].sudo().get_param('web.base.url')
         
         data = {}
@@ -22,17 +22,16 @@ class CollectionsApiController(http.Controller):
             key = cat.collection_key or cat.name.lower().replace(" ", "-")
             
             # 2. LÓGICA DE ANIDAMIENTO (PADRE / HIJO)
-            # Si la categoría tiene un padre y ese padre TAMBIÉN es una colección pública,
-            # guardamos la key del padre. El frontend usará esto para anidar.
             parent_key = None
             if cat.parent_id and cat.parent_id.is_collection:
                 parent_key = cat.parent_id.collection_key or cat.parent_id.name.lower().replace(" ", "-")
 
             # 3. Obtener productos
+            # CORRECCIÓN AQUÍ: Eliminado 'is_published' porque requiere website_sale
             products = request.env['product.template'].sudo().search([
                 ('categ_id', 'child_of', cat.id),
-                ('sale_ok', '=', True),
-                ('is_published', '=', True)
+                ('sale_ok', '=', True), 
+                # ('is_published', '=', True)  <-- ELIMINADO para evitar error
             ], limit=100)
 
             product_list = []
@@ -52,7 +51,7 @@ class CollectionsApiController(http.Controller):
             data[key] = {
                 "title": cat.collection_title_display or cat.name,
                 "description": cat.collection_description or "",
-                "parent": parent_key,  # <--- IMPORTANTE: Aquí decimos quién es el padre
+                "parent": parent_key,
                 "products": product_list
             }
             

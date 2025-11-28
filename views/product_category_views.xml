@@ -41,7 +41,6 @@
         </field>
     </record>
     
-    <!-- Action y Menu estándar -->
     <record id="action_product_collections" model="ir.actions.act_window">
         <field name="name">Gestor de Colecciones</field>
         <field name="res_model">product.category</field>
