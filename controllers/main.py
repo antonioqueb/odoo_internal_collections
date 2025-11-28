@@ -6,52 +6,53 @@ class CollectionsApiController(http.Controller):
     @http.route('/api/collections_data', type='http', auth='public', methods=['GET'], csrf=False, cors='*')
     def get_collections_json(self):
         """
-        Retorna un JSON mapeado por 'key'.
-        Formato:
-        {
-            "earth": {
-                "description": "Texto...",
-                "title": "Earth Collection",
-                "products": [ ... array de productos simplificados ... ]
-            },
-            ...
-        }
+        Retorna JSON mapeado por 'key' incluyendo referencia al padre.
         """
-        # Buscar todas las categorías marcadas como colección
+        # Buscar categorías marcadas como colección
         domain = [('is_collection', '=', True)]
-        # sudo() es necesario para acceder si el usuario web no está logueado en Odoo
         categories = request.env['product.category'].sudo().search(domain)
+        
+        # Obtenemos base url para imágenes de PRODUCTOS (no de colección)
+        base_url = request.env['ir.config_parameter'].sudo().get_param('web.base.url')
         
         data = {}
         
         for cat in categories:
-            # Usamos el campo collection_key si existe, si no, el nombre en minúsculas
-            key = cat.collection_key or cat.name.lower()
+            # 1. Definir Key (Slug)
+            key = cat.collection_key or cat.name.lower().replace(" ", "-")
             
-            # Obtener productos de esta categoría (y subcategorías si Odoo está config así)
-            # Buscamos product.template o product.product según tu necesidad.
-            # Aquí busco product.template publicados (sale_ok=True)
+            # 2. LÓGICA DE ANIDAMIENTO (PADRE / HIJO)
+            # Si la categoría tiene un padre y ese padre TAMBIÉN es una colección pública,
+            # guardamos la key del padre. El frontend usará esto para anidar.
+            parent_key = None
+            if cat.parent_id and cat.parent_id.is_collection:
+                parent_key = cat.parent_id.collection_key or cat.parent_id.name.lower().replace(" ", "-")
+
+            # 3. Obtener productos
             products = request.env['product.template'].sudo().search([
                 ('categ_id', 'child_of', cat.id),
-                ('sale_ok', '=', True)
-            ], limit=50) # Limitamos a 50 por seguridad inicial
+                ('sale_ok', '=', True),
+                ('is_published', '=', True)
+            ], limit=100)
 
             product_list = []
             for p in products:
-                # Mapeo simple para tu ProductGrid
+                # URL de imagen del producto
+                img_url = f"{base_url}/web/image/product.template/{p.id}/image_1920"
+                
                 product_list.append({
                     'id': p.id,
                     'name': p.name,
                     'price': p.list_price,
-                    # Añadir campos de imagen URL si es necesario
+                    'image': img_url,
+                    'currency': p.currency_id.symbol
                 })
 
-            # Construimos el objeto
-            # NOTA: Tu JSON original era string plano, pero tu TSX hace 'data.products'.
-            # Por eso devolvemos un OBJETO con propiedad description.
+            # 4. Construir respuesta
             data[key] = {
                 "title": cat.collection_title_display or cat.name,
                 "description": cat.collection_description or "",
+                "parent": parent_key,  # <--- IMPORTANTE: Aquí decimos quién es el padre
                 "products": product_list
             }
             

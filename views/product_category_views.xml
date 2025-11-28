@@ -16,16 +16,23 @@
                     <page string="Contenido CMS (Next.js)" name="cms_content">
                         <group>
                             <group string="Identificadores">
-                                <field name="collection_key" placeholder="ej: earth" required="is_collection"/>
+                                <field name="collection_key" placeholder="ej: alloys" required="is_collection"/>
                                 <field name="collection_title_display" placeholder="Dejar vacío para usar nombre de categoría"/>
                             </group>
-                            <group string="Estadísticas">
-                                <field name="product_count" string="Productos Totales" readonly="1"/>
+                            <group string="Jerarquía">
+                                <field name="product_count" string="Productos"/>
+                                <div class="alert alert-info" role="alert" colspan="2">
+                                    Para crear sub-colecciones (ej: Alloys > Metalicus):
+                                    <ol>
+                                        <li>Asigna una <strong>Categoría Padre</strong> arriba.</li>
+                                        <li>Asegúrate que el Padre también tenga marcado "Es una Colección Pública".</li>
+                                    </ol>
+                                </div>
                             </group>
                         </group>
-                        <separator string="Narrativa de la Colección"/>
+                        <separator string="Descripción"/>
                         <field name="collection_description" 
-                               placeholder="Escribe aquí la historia de la colección (soporta saltos de línea)..."
+                               placeholder="Texto descriptivo..."
                                widget="text" 
                                options="{'rows': 10}"/>
                     </page>
@@ -33,21 +40,14 @@
             </xpath>
         </field>
     </record>
-
+    
+    <!-- Action y Menu estándar -->
     <record id="action_product_collections" model="ir.actions.act_window">
         <field name="name">Gestor de Colecciones</field>
         <field name="res_model">product.category</field>
         <field name="view_mode">list,form</field>
         <field name="domain">[('is_collection', '=', True)]</field>
         <field name="context">{'default_is_collection': True}</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                Crea tu primera Colección Web
-            </p>
-            <p>
-                Define las categorías que se enviarán a Next.js.
-            </p>
-        </field>
     </record>
 
     <menuitem id="menu_product_collections"
