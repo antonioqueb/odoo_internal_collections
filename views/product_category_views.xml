@@ -1,71 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
-        <!-- 1. Heredar la vista formulario de Categorías (product.category) -->
-        <record id="view_category_form_collection_inherit" model="ir.ui.view">
-            <name>product.category.form.collection.inherit</name>
-            <model>product.category</model>
-            <inherit_id ref="product.product_category_form_view"/>
-            <arch type="xml">
+    <!-- 1. ELIMINADA la etiqueta <data> que causaba el error -->
 
-                <!-- Añadir Checkbox 'Es Colección' después del campo Padre -->
-                <xpath expr="//field[@name='parent_id']" position="after">
-                    <field name="is_collection" widget="boolean_toggle"/>
-                </xpath>
+    <!-- 1. Heredar la vista formulario de Categorías (product.category) -->
+    <record id="view_category_form_collection_inherit" model="ir.ui.view">
+        <name>product.category.form.collection.inherit</name>
+        <model>product.category</model>
+        <inherit_id ref="product.product_category_form_view"/>
+        <arch type="xml">
 
-                <!-- Añadir Ribbon/Etiqueta visual -->
-                <xpath expr="//sheet" position="inside">
-                    <widget name="web_ribbon" title="Colección Pública" bg_color="bg-success" invisible="not is_collection"/>
-                </xpath>
+            <!-- Añadir Checkbox 'Es Colección' después del campo Padre -->
+            <xpath expr="//field[@name='parent_id']" position="after">
+                <field name="is_collection" widget="boolean_toggle"/>
+            </xpath>
 
-                <!-- Añadir Notebook con la configuración CMS al final del sheet -->
-                <xpath expr="//sheet" position="inside">
-                    <notebook invisible="not is_collection">
-                        <page string="Contenido CMS (Next.js)" name="cms_content">
-                            <group>
-                                <group string="Identificadores">
-                                    <field name="collection_key" placeholder="ej: earth" required="is_collection"/>
-                                    <field name="collection_title_display" placeholder="Dejar vacío para usar nombre de categoría"/>
-                                </group>
-                                <group string="Estadísticas">
-                                    <field name="product_count" string="Productos Totales" readonly="1"/>
-                                </group>
+            <!-- Añadir Ribbon/Etiqueta visual -->
+            <xpath expr="//sheet" position="inside">
+                <widget name="web_ribbon" title="Colección Pública" bg_color="bg-success" invisible="not is_collection"/>
+            </xpath>
+
+            <!-- Añadir Notebook con la configuración CMS al final del sheet -->
+            <xpath expr="//sheet" position="inside">
+                <notebook invisible="not is_collection">
+                    <page string="Contenido CMS (Next.js)" name="cms_content">
+                        <group>
+                            <group string="Identificadores">
+                                <field name="collection_key" placeholder="ej: earth" required="is_collection"/>
+                                <field name="collection_title_display" placeholder="Dejar vacío para usar nombre de categoría"/>
                             </group>
-                            
-                            <separator string="Narrativa de la Colección"/>
-                            <field name="collection_description" 
-                                   placeholder="Escribe aquí la historia de la colección (soporta saltos de línea)..."
-                                   widget="text" 
-                                   options="{'rows': 10}"/>
-                        </page>
-                    </notebook>
-                </xpath>
+                            <group string="Estadísticas">
+                                <field name="product_count" string="Productos Totales" readonly="1"/>
+                            </group>
+                        </group>
+                        
+                        <separator string="Narrativa de la Colección"/>
+                        <field name="collection_description" 
+                               placeholder="Escribe aquí la historia de la colección (soporta saltos de línea)..."
+                               widget="text" 
+                               options="{'rows': 10}"/>
+                    </page>
+                </notebook>
+            </xpath>
 
-            </arch>
-        </record>
+        </arch>
+    </record>
 
-        <!-- 2. Acción de Ventana para el menú -->
-        <record id="action_product_collections" model="ir.actions.act_window">
-            <name>Gestor de Colecciones</name>
-            <res_model>product.category</res_model>
-            <view_mode>tree,form</view_mode>
-            <domain>[('is_collection', '=', True)]</domain>
-            <context>{'default_is_collection': True}</context>
-            <help type="html">
-              <p class="o_view_nocontent_smiling_face">
-                Crea tu primera Colección Web
-              </p>
-              <p>
-                Define las categorías que se enviarán a Next.js.
-              </p>
-            </help>
-        </record>
+    <!-- 2. Acción de Ventana para el menú -->
+    <record id="action_product_collections" model="ir.actions.act_window">
+        <name>Gestor de Colecciones</name>
+        <res_model>product.category</res_model>
+        <!-- CAMBIO AQUÍ: Actualizado 'tree' por 'list' para Odoo 19 -->
+        <view_mode>list,form</view_mode>
+        <domain>[('is_collection', '=', True)]</domain>
+        <context>{'default_is_collection': True}</context>
+        <help type="html">
+            <p class="o_view_nocontent_smiling_face">
+            Crea tu primera Colección Web
+            </p>
+            <p>
+            Define las categorías que se enviarán a Next.js.
+            </p>
+        </help>
+    </record>
 
-        <!-- 3. Elemento de Menú -->
-        <menuitem id="menu_product_collections"
-                  name="Colecciones Web"
-                  parent="stock.menu_stock_config_settings"
-                  action="action_product_collections"
-                  sequence="15"/>
-    </data>
+    <!-- 3. Elemento de Menú -->
+    <menuitem id="menu_product_collections"
+              name="Colecciones Web"
+              parent="stock.menu_stock_config_settings"
+              action="action_product_collections"
+              sequence="15"/>
+
 </odoo>
