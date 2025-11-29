@@ -3,7 +3,7 @@ from odoo.http import request
 
 class CollectionsApiController(http.Controller):
 
-    # --- Endpoint 1: Listado General de Colecciones (Estructura de Árbol) ---
+    # --- Endpoint 1: Listado General ---
     @http.route('/api/collections_data', type='http', auth='public', methods=['GET'], csrf=False, cors='*')
     def get_collections_json(self):
         domain = [('is_collection', '=', True)]
@@ -17,11 +17,11 @@ class CollectionsApiController(http.Controller):
             if cat.parent_id and cat.parent_id.is_collection:
                 parent_key = cat.parent_id.collection_key or cat.parent_id.name.lower().replace(" ", "-")
 
-            # Lista simple para vista rápida
+            # Preview simple
             products = request.env['product.template'].sudo().search([
                 ('categ_id', 'child_of', cat.id),
                 ('sale_ok', '=', True), 
-            ], limit=10) # Limitamos vista previa
+            ], limit=10)
 
             product_preview = []
             for p in products:
@@ -47,19 +47,11 @@ class CollectionsApiController(http.Controller):
             headers=[('Content-Type', 'application/json')]
         )
 
-    # --- Endpoint 2: Detalle de Productos por Colección (FULL DATA) ---
+    # --- Endpoint 2: Detalle Completo ---
     @http.route('/api/collection/<string:collection_key>', type='http', auth='public', methods=['GET'], csrf=False, cors='*')
     def get_collection_details(self, collection_key):
-        """
-        Retorna todos los productos de una colección específica con:
-        - Descripción corta/larga
-        - SEO, Slug
-        - 5 Imágenes (Principal + 4 extras)
-        - Dimensiones, Peso, Material
-        """
         base_url = request.env['ir.config_parameter'].sudo().get_param('web.base.url')
         
-        # 1. Buscar la categoría por el key
         category = request.env['product.category'].sudo().search([
             ('collection_key', '=', collection_key),
             ('is_collection', '=', True)
@@ -72,7 +64,6 @@ class CollectionsApiController(http.Controller):
                 status=404
             )
 
-        # 2. Buscar productos
         products = request.env['product.template'].sudo().search([
             ('categ_id', 'child_of', category.id),
             ('sale_ok', '=', True)
@@ -81,25 +72,25 @@ class CollectionsApiController(http.Controller):
         products_data = []
 
         for p in products:
-            # --- Gestión de Imágenes ---
-            # Imagen Principal
+            # 1. Imagen Principal (Standard Odoo)
             main_image = f"{base_url}/web/image/product.template/{p.id}/image_1920"
             
-            # Imágenes Extra (Galería estándar de Odoo)
-            # Tomamos las primeras 4 imágenes extra
-            extra_images = p.product_template_image_ids[:4]
-            gallery_urls = {}
+            # 2. Imágenes Extra (Nuestros campos personalizados)
+            # Construimos la URL solo si el campo tiene contenido (técnicamente Odoo lo sirve igual, pero ahorramos peticiones vacías en el front si validamos aquí)
             
-            # Rellenar slots image_1 a image_4
-            for i in range(4):
-                key_name = f"image_{i+1}"
-                if i < len(extra_images):
-                    img_obj = extra_images[i]
-                    gallery_urls[key_name] = f"{base_url}/web/image/product.image/{img_obj.id}/image_1920"
-                else:
-                    gallery_urls[key_name] = None # O null si prefieres
+            def get_img_url(field_name):
+                # Helper simple para generar la URL si existe data
+                if getattr(p, field_name):
+                    return f"{base_url}/web/image/product.template/{p.id}/{field_name}"
+                return None
 
-            # --- Construcción del Objeto Producto ---
+            gallery_urls = {
+                'image_1': get_img_url('headless_image_1'),
+                'image_2': get_img_url('headless_image_2'),
+                'image_3': get_img_url('headless_image_3'),
+                'image_4': get_img_url('headless_image_4'),
+            }
+
             product_obj = {
                 'id': p.id,
                 'name': p.name,
@@ -107,14 +98,13 @@ class CollectionsApiController(http.Controller):
                 'price': p.list_price,
                 'currency': p.currency_id.symbol,
                 
-                # Contenido
                 'short_description': p.headless_short_description or "",
-                'long_description': p.headless_long_description or "", # Ojo: esto retorna HTML
+                'long_description': p.headless_long_description or "",
                 
-                # Especificaciones
                 'material': p.headless_material or "",
                 'specs': {
                     'weight_kg': p.weight,
+                    'volume_m3': p.volume,
                     'dimensions': {
                         'length': p.dim_length,
                         'width': p.dim_width,
@@ -123,13 +113,11 @@ class CollectionsApiController(http.Controller):
                     }
                 },
 
-                # Imágenes (Total 5)
                 'images': {
                     'main': main_image,
-                    **gallery_urls # Expande image_1, image_2, etc.
+                    **gallery_urls
                 },
 
-                # SEO & Meta
                 'seo': {
                     'keyword': p.headless_seo_keyword or "",
                     'meta_title': p.headless_meta_title or p.name,
@@ -138,7 +126,6 @@ class CollectionsApiController(http.Controller):
             }
             products_data.append(product_obj)
 
-        # Respuesta final
         response_data = {
             "collection_info": {
                 "title": category.collection_title_display or category.name,

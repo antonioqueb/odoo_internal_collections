@@ -17,8 +17,14 @@ class ProductTemplate(models.Model):
 
     headless_material = fields.Char(string="Material / Composición")
     
-    # --- Dimensiones Específicas (Largo x Ancho x Alto) ---
-    # Odoo tiene 'volume' y 'weight', pero a veces se necesita L/W/H explícito
+    # --- IMÁGENES EXTRA (Sin website_sale) ---
+    # Al no tener el módulo de comercio electrónico, creamos los slots manualmente
+    headless_image_1 = fields.Image(string="Imagen Extra 1", max_width=1920, max_height=1920)
+    headless_image_2 = fields.Image(string="Imagen Extra 2", max_width=1920, max_height=1920)
+    headless_image_3 = fields.Image(string="Imagen Extra 3", max_width=1920, max_height=1920)
+    headless_image_4 = fields.Image(string="Imagen Extra 4", max_width=1920, max_height=1920)
+
+    # --- Dimensiones Específicas ---
     dim_length = fields.Float(string="Largo (cm)")
     dim_width = fields.Float(string="Ancho (cm)")
     dim_height = fields.Float(string="Alto (cm)")
@@ -37,10 +43,9 @@ class ProductTemplate(models.Model):
     @api.onchange('name')
     def _onchange_name_slug(self):
         if not self.headless_slug and self.name:
-            # Limpieza básica para crear un slug
             s = self.name.lower().strip()
-            s = re.sub(r'[^a-z0-9\s-]', '', s) # Quitar caracteres especiales
-            self.headless_slug = re.sub(r'\s+', '-', s) # Espacios a guiones
+            s = re.sub(r'[^a-z0-9\s-]', '', s) 
+            self.headless_slug = re.sub(r'\s+', '-', s)
 
     _sql_constraints = [
         ('headless_slug_unique', 'unique(headless_slug)', 'El Slug del producto debe ser único.')

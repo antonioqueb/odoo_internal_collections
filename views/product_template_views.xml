@@ -22,9 +22,19 @@
                                 <field name="dim_height" placeholder="Alto"/> cm
                             </div>
                             <field name="weight" string="Peso (kg)"/>
+                            <field name="volume" string="Volumen (m³)"/>
                             <field name="headless_material"/>
                         </group>
                     </group>
+                    
+                    <separator string="Galería Adicional (API)"/>
+                    <group col="4">
+                        <field name="headless_image_1" widget="image" options="{'size': [150, 150]}"/>
+                        <field name="headless_image_2" widget="image" options="{'size': [150, 150]}"/>
+                        <field name="headless_image_3" widget="image" options="{'size': [150, 150]}"/>
+                        <field name="headless_image_4" widget="image" options="{'size': [150, 150]}"/>
+                    </group>
+
                     <separator string="Descripciones"/>
                     <group>
                         <field name="headless_short_description" placeholder="Resumen corto..."/>
