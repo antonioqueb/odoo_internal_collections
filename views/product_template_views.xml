@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_product_template_form_headless" model="ir.ui.view">
+        <field name="name">product.template.form.headless</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Headless CMS &amp; SEO" name="headless_data">
+                    <group>
+                        <group string="SEO &amp; URL">
+                            <field name="headless_slug" placeholder="ej: silla-moderna-madera"/>
+                            <field name="headless_seo_keyword"/>
+                            <field name="headless_meta_title"/>
+                            <field name="headless_meta_description"/>
+                        </group>
+                        <group string="Especificaciones Físicas">
+                            <label for="dim_length" string="Dimensiones (L x A x A)"/>
+                            <div class="o_row">
+                                <field name="dim_length" placeholder="Largo"/> x
+                                <field name="dim_width" placeholder="Ancho"/> x
+                                <field name="dim_height" placeholder="Alto"/> cm
+                            </div>
+                            <field name="weight" string="Peso (kg)"/>
+                            <field name="headless_material"/>
+                        </group>
+                    </group>
+                    <separator string="Descripciones"/>
+                    <group>
+                        <field name="headless_short_description" placeholder="Resumen corto..."/>
+                    </group>
+                    <field name="headless_long_description" placeholder="Descripción detallada..."/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
