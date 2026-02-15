@@ -35,6 +35,11 @@
                                placeholder="Texto descriptivo..."
                                widget="text" 
                                options="{'rows': 10}"/>
+                        <separator string="Subtítulo"/>
+                        <field name="collection_subtitle" 
+                            placeholder="Texto secundario complementario..."
+                            widget="text" 
+                            options="{'rows': 4}"/>
                     </page>
                 </notebook>
             </xpath>

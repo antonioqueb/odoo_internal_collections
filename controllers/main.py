@@ -130,6 +130,7 @@ class CollectionsApiController(http.Controller):
             "collection_info": {
                 "title": category.collection_title_display or category.name,
                 "description": category.collection_description,
+                "subtitle": category.collection_subtitle or "",
                 "key": category.collection_key
             },
             "products": products_data

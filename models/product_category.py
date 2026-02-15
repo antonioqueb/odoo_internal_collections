@@ -10,6 +10,12 @@ class ProductCategory(models.Model):
         help="Marca si esta categoría debe salir en el sitio web."
     )
 
+    collection_subtitle = fields.Text(
+        string="Subtítulo / Texto Secundario",
+        translate=True,
+        help="Texto complementario que aparece debajo de la descripción principal."
+    )
+
     collection_key = fields.Char(
         string="Key / Slug (JSON)",
         help="Clave única para la URL (ej: alloys, metalicus).",
