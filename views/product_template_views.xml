@@ -14,6 +14,7 @@
                             <field name="headless_meta_title"/>
                             <field name="headless_meta_description"/>
                         </group>
+
                         <group string="Especificaciones Físicas">
                             <label for="dim_length" string="Dimensiones (L x A x A)"/>
                             <div class="o_row">
@@ -26,7 +27,7 @@
                             <field name="headless_material"/>
                         </group>
                     </group>
-                    
+
                     <separator string="Galería Adicional (API)"/>
                     <group col="4">
                         <field name="headless_image_1" widget="image" options="{'size': [150, 150]}"/>
@@ -35,10 +36,43 @@
                         <field name="headless_image_4" widget="image" options="{'size': [150, 150]}"/>
                     </group>
 
+                    <separator string="Video del Producto (API)"/>
+                    <group>
+                        <group string="Video subido a Odoo">
+                            <field name="headless_video_filename" invisible="1"/>
+
+                            <field name="headless_video_file"
+                                   widget="binary"
+                                   filename="headless_video_filename"
+                                   string="Subir Video"
+                                   options="{'accepted_file_extensions': '.mp4,.webm,.mov'}"/>
+
+                            <field name="headless_video_poster"
+                                   widget="image"
+                                   string="Poster / Portada"
+                                   options="{'size': [220, 160]}"/>
+                        </group>
+
+                        <group string="Video externo opcional">
+                            <field name="headless_video_url_manual"
+                                   placeholder="https://..."/>
+
+                            <div class="alert alert-info" role="alert" colspan="2">
+                                <strong>Prioridad de reproducción:</strong>
+                                <ol>
+                                    <li>Si subes un archivo de video, la API usará el archivo subido en Odoo.</li>
+                                    <li>Si no subes archivo, la API usará la URL externa.</li>
+                                    <li>Para reproducción directa en HTML5, se recomienda MP4 o WebM.</li>
+                                </ol>
+                            </div>
+                        </group>
+                    </group>
+
                     <separator string="Descripciones"/>
                     <group>
                         <field name="headless_short_description" placeholder="Resumen corto..."/>
                     </group>
+
                     <field name="headless_long_description" placeholder="Descripción detallada..."/>
                 </page>
             </xpath>

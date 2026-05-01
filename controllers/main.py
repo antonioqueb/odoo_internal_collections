@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
+import base64
 import json
+import mimetypes
+import re
 
 from odoo import http
 from odoo.http import request
@@ -17,10 +20,10 @@ class CollectionsApiController(http.Controller):
         Respuesta JSON estándar.
 
         IMPORTANTE:
-        No agregamos manualmente headers CORS aquí porque las rutas ya usan
-        cors='*'. Si se agregan también aquí, Odoo/proxy/Nginx puede terminar
-        enviando Access-Control-Allow-Origin duplicado y el navegador bloquea
-        la respuesta.
+        No agregamos manualmente Access-Control-Allow-Origin porque las rutas
+        ya usan cors='*'. Si se agrega también aquí, Odoo/proxy/Nginx puede
+        terminar enviando Access-Control-Allow-Origin duplicado y el navegador
+        bloqueará la respuesta.
         """
         return request.make_response(
             data=json.dumps(data, default=str, ensure_ascii=False),
@@ -34,6 +37,30 @@ class CollectionsApiController(http.Controller):
         if getattr(product_template, field_name):
             return f"{base_url}/web/image/product.template/{product_template.id}/{field_name}"
         return None
+
+    def _get_product_video_payload(self, base_url, product_template, fallback_poster=None):
+        """
+        Devuelve un payload estable para el frontend.
+
+        Mantiene compatibilidad:
+        - Si no hay video, devuelve has_video=False.
+        - Si hay archivo subido, devuelve URL interna de streaming.
+        - Si no hay archivo, pero hay URL manual, devuelve esa URL.
+        """
+        if hasattr(product_template, 'get_headless_video_payload'):
+            return product_template.get_headless_video_payload(
+                base_url=base_url,
+                fallback_poster=fallback_poster,
+            )
+
+        return {
+            'has_video': False,
+            'url': '',
+            'poster': fallback_poster or '',
+            'source': None,
+            'filename': '',
+            'mimetype': '',
+        }
 
     def _get_sold_map_by_template(self, product_templates):
         """
@@ -99,6 +126,155 @@ class CollectionsApiController(http.Controller):
             'sold_source': 'confirmed_sale_order' if is_sold else None,
         }
 
+    def _safe_header_filename(self, filename):
+        filename = (filename or 'product-video.mp4').strip()
+        filename = filename.replace('"', '').replace("'", '')
+        filename = filename.replace('\n', '').replace('\r', '')
+        return filename or 'product-video.mp4'
+
+    def _get_video_mimetype(self, filename):
+        mimetype, _encoding = mimetypes.guess_type(filename or 'product-video.mp4')
+        return mimetype or 'video/mp4'
+
+    def _build_video_response(self, file_content, filename):
+        """
+        Respuesta de video con soporte básico para Range requests.
+
+        Esto ayuda especialmente a navegadores como Safari y a reproductores HTML5
+        que piden fragmentos del video en vez de descargarlo completo.
+        """
+        total_size = len(file_content)
+        filename = self._safe_header_filename(filename)
+        mimetype = self._get_video_mimetype(filename)
+
+        request_method = request.httprequest.method
+        range_header = request.httprequest.headers.get('Range')
+
+        common_headers = [
+            ('Content-Type', mimetype),
+            ('Content-Disposition', f'inline; filename="{filename}"'),
+            ('Accept-Ranges', 'bytes'),
+            ('Cache-Control', 'public, max-age=86400'),
+            ('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges'),
+        ]
+
+        if range_header:
+            match = re.match(r'bytes=(\d*)-(\d*)', range_header)
+
+            if match:
+                start_str, end_str = match.groups()
+
+                try:
+                    if start_str == '' and end_str:
+                        suffix_length = int(end_str)
+                        start = max(total_size - suffix_length, 0)
+                        end = total_size - 1
+                    else:
+                        start = int(start_str or 0)
+                        end = int(end_str) if end_str else total_size - 1
+
+                    end = min(end, total_size - 1)
+
+                    if start >= total_size or start > end:
+                        return request.make_response(
+                            b'',
+                            headers=[
+                                ('Content-Range', f'bytes */{total_size}'),
+                                *common_headers,
+                            ],
+                            status=416,
+                        )
+
+                    chunk = file_content[start:end + 1]
+                    body = b'' if request_method == 'HEAD' else chunk
+
+                    headers = [
+                        *common_headers,
+                        ('Content-Range', f'bytes {start}-{end}/{total_size}'),
+                        ('Content-Length', str(len(chunk))),
+                    ]
+
+                    return request.make_response(
+                        body,
+                        headers=headers,
+                        status=206,
+                    )
+
+                except Exception:
+                    pass
+
+        body = b'' if request_method == 'HEAD' else file_content
+
+        headers = [
+            *common_headers,
+            ('Content-Length', str(total_size)),
+        ]
+
+        return request.make_response(
+            body,
+            headers=headers,
+            status=200,
+        )
+
+    # -------------------------------------------------------------------------
+    # ENDPOINT VIDEO: STREAMING DE VIDEO DEL PRODUCTO
+    # -------------------------------------------------------------------------
+
+    @http.route(
+        [
+            '/api/collections/product-video/<int:product_template_id>',
+            '/api/collections/product-video/<int:product_template_id>/<string:filename>',
+        ],
+        type='http',
+        auth='public',
+        methods=['GET', 'HEAD', 'OPTIONS'],
+        csrf=False,
+        cors='*',
+    )
+    def stream_product_video(self, product_template_id, filename=None, **kw):
+        """
+        Sirve el video subido en product.template.headless_video_file.
+
+        La URL con filename es decorativa, pero ayuda al navegador a detectar
+        mejor el tipo de archivo:
+            /api/collections/product-video/123/video.mp4
+        """
+        if request.httprequest.method == 'OPTIONS':
+            return request.make_response(
+                b'',
+                headers=[
+                    ('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS'),
+                    ('Access-Control-Allow-Headers', 'Range, Content-Type'),
+                    ('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges'),
+                ],
+                status=200,
+            )
+
+        product = request.env['product.template'].sudo().browse(product_template_id)
+
+        if not product.exists() or not product.headless_video_file:
+            return request.make_response(
+                'Video not found',
+                headers=[('Content-Type', 'text/plain; charset=utf-8')],
+                status=404,
+            )
+
+        try:
+            file_content = base64.b64decode(product.headless_video_file)
+            real_filename = filename or product.headless_video_filename or 'product-video.mp4'
+
+            return self._build_video_response(
+                file_content=file_content,
+                filename=real_filename,
+            )
+
+        except Exception as error:
+            return request.make_response(
+                f"Error streaming video: {str(error)}",
+                headers=[('Content-Type', 'text/plain; charset=utf-8')],
+                status=500,
+            )
+
     # -------------------------------------------------------------------------
     # ENDPOINT 1: LISTADO GENERAL DE COLECCIONES
     # -------------------------------------------------------------------------
@@ -146,12 +322,26 @@ class CollectionsApiController(http.Controller):
                 slug = product.headless_slug or str(product.id)
                 img_url = f"{base_url}/web/image/product.template/{product.id}/image_1920"
                 is_sold = sold_map.get(product.id, False)
+                video_payload = self._get_product_video_payload(
+                    base_url=base_url,
+                    product_template=product,
+                    fallback_poster=img_url,
+                )
 
                 product_preview.append({
                     'id': product.id,
                     'name': product.name,
                     'slug': slug,
+
+                    # Compatibilidad anterior
                     'image': img_url,
+
+                    # Nuevo soporte multimedia
+                    'media_type': 'video' if video_payload.get('has_video') else 'image',
+                    'has_video': video_payload.get('has_video'),
+                    'video_url': video_payload.get('url'),
+                    'video': video_payload,
+
                     **self._get_availability_payload(is_sold),
                 })
 
@@ -216,6 +406,12 @@ class CollectionsApiController(http.Controller):
                 'image_4': self._get_product_image_url(base_url, product, 'headless_image_4'),
             }
 
+            video_payload = self._get_product_video_payload(
+                base_url=base_url,
+                product_template=product,
+                fallback_poster=main_image,
+            )
+
             is_sold = sold_map.get(product.id, False)
 
             product_obj = {
@@ -242,9 +438,21 @@ class CollectionsApiController(http.Controller):
                     },
                 },
 
+                # Compatibilidad anterior
                 'images': {
                     'main': main_image,
                     **gallery_urls,
+                },
+
+                # Nuevo soporte multimedia
+                'media_type': 'video' if video_payload.get('has_video') else 'image',
+                'has_video': video_payload.get('has_video'),
+                'video_url': video_payload.get('url'),
+                'video': video_payload,
+                'media': {
+                    'type': 'video' if video_payload.get('has_video') else 'image',
+                    'image': main_image,
+                    'video': video_payload,
                 },
 
                 'seo': {
