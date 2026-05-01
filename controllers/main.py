@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+
+import json
+
 from odoo import http
 from odoo.http import request
 
@@ -9,15 +13,21 @@ class CollectionsApiController(http.Controller):
     # -------------------------------------------------------------------------
 
     def _json_response(self, data, status=200):
+        """
+        Respuesta JSON estándar.
+
+        IMPORTANTE:
+        No agregamos manualmente headers CORS aquí porque las rutas ya usan
+        cors='*'. Si se agregan también aquí, Odoo/proxy/Nginx puede terminar
+        enviando Access-Control-Allow-Origin duplicado y el navegador bloquea
+        la respuesta.
+        """
         return request.make_response(
-            data=http.json.dumps(data),
+            data=json.dumps(data, default=str, ensure_ascii=False),
             headers=[
-                ('Content-Type', 'application/json'),
-                ('Access-Control-Allow-Origin', '*'),
-                ('Access-Control-Allow-Methods', 'GET, OPTIONS'),
-                ('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept'),
+                ('Content-Type', 'application/json; charset=utf-8'),
             ],
-            status=status
+            status=status,
         )
 
     def _get_product_image_url(self, base_url, product_template, field_name):
@@ -99,7 +109,7 @@ class CollectionsApiController(http.Controller):
         auth='public',
         methods=['GET', 'OPTIONS'],
         csrf=False,
-        cors='*'
+        cors='*',
     )
     def get_collections_json(self):
         if request.httprequest.method == 'OPTIONS':
@@ -109,7 +119,7 @@ class CollectionsApiController(http.Controller):
         ProductTemplate = request.env['product.template'].sudo()
 
         categories = Category.search([
-            ('is_collection', '=', True)
+            ('is_collection', '=', True),
         ])
 
         base_url = request.env['ir.config_parameter'].sudo().get_param('web.base.url')
@@ -146,11 +156,11 @@ class CollectionsApiController(http.Controller):
                 })
 
             data[key] = {
-                "id": cat.id,
-                "title": cat.collection_title_display or cat.name,
-                "description": cat.collection_description or "",
-                "parent": parent_key,
-                "products_preview": product_preview,
+                'id': cat.id,
+                'title': cat.collection_title_display or cat.name,
+                'description': cat.collection_description or '',
+                'parent': parent_key,
+                'products_preview': product_preview,
             }
 
         return self._json_response(data)
@@ -165,7 +175,7 @@ class CollectionsApiController(http.Controller):
         auth='public',
         methods=['GET', 'OPTIONS'],
         csrf=False,
-        cors='*'
+        cors='*',
     )
     def get_collection_details(self, collection_key):
         if request.httprequest.method == 'OPTIONS':
@@ -184,7 +194,7 @@ class CollectionsApiController(http.Controller):
         if not category:
             return self._json_response(
                 {'error': 'Collection not found'},
-                status=404
+                status=404,
             )
 
         products = ProductTemplate.search([
@@ -217,10 +227,10 @@ class CollectionsApiController(http.Controller):
 
                 **self._get_availability_payload(is_sold),
 
-                'short_description': product.headless_short_description or "",
-                'long_description': product.headless_long_description or "",
+                'short_description': product.headless_short_description or '',
+                'long_description': product.headless_long_description or '',
 
-                'material': product.headless_material or "",
+                'material': product.headless_material or '',
                 'specs': {
                     'weight_kg': product.weight,
                     'volume_m3': product.volume,
@@ -238,22 +248,22 @@ class CollectionsApiController(http.Controller):
                 },
 
                 'seo': {
-                    'keyword': product.headless_seo_keyword or "",
+                    'keyword': product.headless_seo_keyword or '',
                     'meta_title': product.headless_meta_title or product.name,
-                    'meta_description': product.headless_meta_description or product.headless_short_description or "",
+                    'meta_description': product.headless_meta_description or product.headless_short_description or '',
                 },
             }
 
             products_data.append(product_obj)
 
         response_data = {
-            "collection_info": {
-                "title": category.collection_title_display or category.name,
-                "description": category.collection_description,
-                "subtitle": category.collection_subtitle or "",
-                "key": category.collection_key,
+            'collection_info': {
+                'title': category.collection_title_display or category.name,
+                'description': category.collection_description or '',
+                'subtitle': category.collection_subtitle or '',
+                'key': category.collection_key,
             },
-            "products": products_data,
+            'products': products_data,
         }
 
         return self._json_response(response_data)
